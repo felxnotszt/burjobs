@@ -131,22 +131,33 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
 
       <div className="grid grid-cols-2 gap-3 p-4">
         {filtered.map(item => (
-          <div key={item.id} className="bg-white rounded-lg shadow overflow-hidden">
+          <div key={item.id} className="bg-white rounded-lg shadow overflow-hidden relative">
             {item.imagePath ? (
-              <img
-                src={item.imagePath}
-                alt={item.name}
-                className="w-full h-32 object-cover cursor-pointer"
-                onClick={() => setModalImage(item.imagePath!)}
-              />
+              <>
+                <img
+                  src={item.imagePath}
+                  alt={item.name}
+                  className="w-full h-32 object-cover cursor-pointer"
+                  onClick={() => setModalImage(item.imagePath!)}
+                />
+                {item.isPopular && (
+                  <span className="absolute top-2 right-2 text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full">
+                    Populer
+                  </span>
+                )}
+              </>
             ) : (
-              <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+              <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400 text-xs relative">
                 Tidak ada gambar
+                {item.isPopular && (
+                  <span className="absolute top-2 right-2 text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full">
+                    Populer
+                  </span>
+                )}
               </div>
             )}
             <div className="p-3">
               <h3 className="font-semibold text-sm">{item.name}</h3>
-              {item.isPopular && <span className="text-xs text-orange-600">Populer</span>}
               <p className="text-green-900 font-bold text-sm mt-1">{formatRupiah(item.price)}</p>
               <button
                 onClick={() => addToCart(item)}
