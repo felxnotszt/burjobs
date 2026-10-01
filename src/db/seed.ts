@@ -45,8 +45,8 @@ async function seed() {
     { name: 'Mie Kuah', price: 14000, categoryId: cats[1].id },
     { name: 'Nasi Goreng', price: 16000, categoryId: cats[2].id, isPopular: true },
     { name: 'Nasi Ayam Geprek', price: 18000, categoryId: cats[2].id },
-    { name: 'Es Teh Manis', price: 5000, categoryId: cats[3].id },
-    { name: 'Es Jeruk', price: 7000, categoryId: cats[3].id },
+    { name: 'Teh', price: 5000, categoryId: cats[3].id },
+    { name: 'Jeruk', price: 7000, categoryId: cats[3].id },
     { name: 'Tempe Goreng', price: 3000, categoryId: cats[4].id },
     { name: 'Tahu Goreng', price: 3000, categoryId: cats[4].id },
   ];
@@ -66,6 +66,31 @@ async function seed() {
     { menuOptionId: opt[0].id, label: 'Sedang', extraPrice: 0 },
     { menuOptionId: opt[0].id, label: 'Pedas', extraPrice: 0 },
     { menuOptionId: opt[0].id, label: 'Pedas Banget', extraPrice: 1000 },
+  ]);
+
+  // Options for Teh
+  const teh = menus.find(m => m.name === 'Teh')!;
+  const tehSuhu = await db.insert(schema.menuOptions).values({
+    menuItemId: teh.id,
+    name: 'Suhu',
+    type: 'single',
+    isRequired: true,
+  }).returning();
+  await db.insert(schema.menuOptionValues).values([
+    { menuOptionId: tehSuhu[0].id, label: 'Anget', extraPrice: 0 },
+    { menuOptionId: tehSuhu[0].id, label: 'Es', extraPrice: 0 },
+  ]);
+
+  const tehGula = await db.insert(schema.menuOptions).values({
+    menuItemId: teh.id,
+    name: 'Tingkat Gula',
+    type: 'single',
+    isRequired: true,
+  }).returning();
+  await db.insert(schema.menuOptionValues).values([
+    { menuOptionId: tehGula[0].id, label: 'Gula', extraPrice: 0 },
+    { menuOptionId: tehGula[0].id, label: 'Less', extraPrice: 0 },
+    { menuOptionId: tehGula[0].id, label: 'Tawar', extraPrice: 0 },
   ]);
 
   console.log('Seed done');

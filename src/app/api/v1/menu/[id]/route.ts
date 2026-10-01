@@ -9,7 +9,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const options = await db.select().from(menuOptions).where(eq(menuOptions.menuItemId, id));
   const optionIds = options.map(o => o.id);
-  const optionValues = await db.select().from(menuOptionValues).where(inArray(menuOptionValues.menuOptionId, optionIds));
+  const optionValues = optionIds.length > 0
+    ? await db.select().from(menuOptionValues).where(inArray(menuOptionValues.menuOptionId, optionIds))
+    : [];
 
   return Response.json({
     success: true,

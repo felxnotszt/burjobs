@@ -19,6 +19,25 @@ interface Category {
   name: string;
 }
 
+interface OptionValue {
+  id: string;
+  menuOptionId: string;
+  label: string;
+  extraPrice: number;
+}
+
+interface MenuOption {
+  id: string;
+  name: string;
+  type: 'single' | 'multiple';
+  isRequired: boolean;
+  values: OptionValue[];
+}
+
+interface MenuDetail extends MenuItem {
+  options: MenuOption[];
+}
+
 export default function CustomerMenu({ token, tableNumber }: { token: string; tableNumber: number }) {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -28,6 +47,11 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
   const [showCart, setShowCart] = useState(false);
   const [orderStatus, setOrderStatus] = useState<any>(null);
   const [modalImage, setModalImage] = useState<string | null>(null);
+
+  // Variant picker state
+  const [pickerItem, setPickerItem] = useState<MenuDetail | null>(null);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerSelections, setPickerSelections] = useState<Record<string, string[]>>({});
 
   const cart = useCartStore();
 
@@ -58,17 +82,76 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
     return true;
   });
 
-  function addToCart(item: MenuItem) {
+  async function handleAddClick(item: MenuItem) {
+    if (pickerLoading) return;
+    setPickerLoading(true);
+    try {
+      const res = await fetch(`/api/v1/menu/${item.id}`);
+      const data = await res.json();
+      if (data.success && data.data.options.length > 0) {
+        setPickerItem(data.data);
+        // Pre-select first value for required single options
+        const defaults: Record<string, string[]> = {};
+        for (const opt of data.data.options as MenuOption[]) {
+          if (opt.isRequired && opt.type === 'single' && opt.values.length > 0) {
+            defaults[opt.id] = [opt.values[0].id];
+          }
+        }
+        setPickerSelections(defaults);
+      } else {
+        cart.addItem({
+          menuItemId: item.id, name: item.name, price: item.price,
+          qty: 1, optionValueIds: [], optionLabels: [], extraPrice: 0, note: '',
+        });
+      }
+    } catch {
+      cart.addItem({
+        menuItemId: item.id, name: item.name, price: item.price,
+        qty: 1, optionValueIds: [], optionLabels: [], extraPrice: 0, note: '',
+      });
+    }
+    setPickerLoading(false);
+  }
+
+  function toggleOption(optionId: string, valueId: string, type: 'single' | 'multiple') {
+    setPickerSelections(prev => {
+      if (type === 'single') return { ...prev, [optionId]: [valueId] };
+      const current = prev[optionId] ?? [];
+      return {
+        ...prev,
+        [optionId]: current.includes(valueId)
+          ? current.filter(v => v !== valueId)
+          : [...current, valueId],
+      };
+    });
+  }
+
+  function confirmPicker() {
+    if (!pickerItem) return;
+    for (const opt of pickerItem.options) {
+      if (opt.isRequired && !(pickerSelections[opt.id]?.length)) {
+        alert(`Pilih ${opt.name} terlebih dahulu`);
+        return;
+      }
+    }
+    const allValues = pickerItem.options.flatMap(o => o.values);
+    const selectedIds = Object.values(pickerSelections).flat();
+    const selectedValues = selectedIds
+      .map(id => allValues.find(v => v.id === id))
+      .filter((v): v is OptionValue => !!v);
+    // ponytail: merges different variants into same line; dedup by (menuId+optionIds) when needed
     cart.addItem({
-      menuItemId: item.id,
-      name: item.name,
-      price: item.price,
+      menuItemId: pickerItem.id,
+      name: pickerItem.name,
+      price: pickerItem.price,
       qty: 1,
-      optionValueIds: [],
-      optionLabels: [],
-      extraPrice: 0,
+      optionValueIds: selectedIds,
+      optionLabels: selectedValues.map(v => v.label),
+      extraPrice: selectedValues.reduce((sum, v) => sum + v.extraPrice, 0),
       note: '',
     });
+    setPickerItem(null);
+    setPickerSelections({});
   }
 
   async function placeOrder() {
@@ -160,8 +243,9 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
               <h3 className="font-semibold text-sm">{item.name}</h3>
               <p className="text-green-900 font-bold text-sm mt-1">{formatRupiah(item.price)}</p>
               <button
-                onClick={() => addToCart(item)}
-                className="w-full mt-2 bg-green-900 text-white py-1 rounded text-sm"
+                onClick={() => handleAddClick(item)}
+                disabled={pickerLoading}
+                className="w-full mt-2 bg-green-900 text-white py-1 rounded text-sm disabled:opacity-50"
               >
                 + Keranjang
               </button>
@@ -210,6 +294,59 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
           </div>
         </div>
       )}
+      {/* Variant picker modal */}
+      {pickerItem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+          <div className="bg-white w-full max-w-md mx-auto rounded-t-xl p-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between mb-3">
+              <h2 className="text-lg font-bold">{pickerItem.name}</h2>
+              <button onClick={() => { setPickerItem(null); setPickerSelections({}); }} className="text-gray-500">&times;</button>
+            </div>
+            <p className="text-green-900 font-bold mb-4">{formatRupiah(pickerItem.price)}</p>
+
+            {pickerItem.options.map(opt => (
+              <div key={opt.id} className="mb-4">
+                <p className="font-semibold text-sm mb-2">
+                  {opt.name}
+                  {opt.isRequired && <span className="text-red-500 ml-1">*</span>}
+                  <span className="text-xs text-gray-400 ml-2">
+                    {opt.type === 'single' ? 'Pilih satu' : 'Pilih beberapa'}
+                  </span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {opt.values.map(val => {
+                    const selected = pickerSelections[opt.id]?.includes(val.id);
+                    return (
+                      <button
+                        key={val.id}
+                        onClick={() => toggleOption(opt.id, val.id, opt.type)}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          selected
+                            ? 'bg-green-900 text-white border-green-900'
+                            : 'bg-white text-gray-700 border-gray-300'
+                        }`}
+                      >
+                        {val.label}
+                        {val.extraPrice > 0 && (
+                          <span className="ml-1 text-xs opacity-75">+{formatRupiah(val.extraPrice)}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={confirmPicker}
+              className="w-full bg-green-900 text-white py-3 rounded-lg mt-2 font-semibold"
+            >
+              Tambah ke Keranjang
+            </button>
+          </div>
+        </div>
+      )}
+
       {modalImage && (
         <div
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
