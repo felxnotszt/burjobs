@@ -27,6 +27,7 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
   const [orderStatus, setOrderStatus] = useState<any>(null);
+  const [modalImage, setModalImage] = useState<string | null>(null);
 
   const cart = useCartStore();
 
@@ -131,8 +132,17 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
       <div className="grid grid-cols-2 gap-3 p-4">
         {filtered.map(item => (
           <div key={item.id} className="bg-white rounded-lg shadow overflow-hidden">
-            {item.imagePath && (
-              <img src={item.imagePath} alt={item.name} className="w-full h-32 object-cover" />
+            {item.imagePath ? (
+              <img
+                src={item.imagePath}
+                alt={item.name}
+                className="w-full h-32 object-cover cursor-pointer"
+                onClick={() => setModalImage(item.imagePath!)}
+              />
+            ) : (
+              <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+                Tidak ada gambar
+              </div>
             )}
             <div className="p-3">
               <h3 className="font-semibold text-sm">{item.name}</h3>
@@ -187,6 +197,24 @@ export default function CustomerMenu({ token, tableNumber }: { token: string; ta
               Pesan Sekarang
             </button>
           </div>
+        </div>
+      )}
+      {modalImage && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setModalImage(null)}
+        >
+          <img
+            src={modalImage}
+            alt="Gambar menu"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+          />
+          <button
+            className="absolute top-4 right-4 text-white text-2xl font-bold"
+            onClick={() => setModalImage(null)}
+          >
+            &times;
+          </button>
         </div>
       )}
     </div>

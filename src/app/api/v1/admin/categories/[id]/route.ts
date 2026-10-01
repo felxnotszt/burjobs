@@ -2,16 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { categories, profiles } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { createClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/auth-guard';
 import { categorySchema } from '@/lib/validators';
-
-async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw { status: 401, message: 'Unauthorized' };
-  const profile = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
-  if (!profile.length || profile[0].role !== 'admin') throw { status: 403, message: 'Forbidden' };
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

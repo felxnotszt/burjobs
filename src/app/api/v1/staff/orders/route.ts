@@ -2,18 +2,11 @@ import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { orders, orderItems, menuItems, tables, profiles } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getUser } from '@/lib/supabase/server';
-
-export async function requireRole(allowed: string[]) {
-  const user = await getUser();
-  if (!user) throw { status: 401, message: 'Unauthorized' };
-  if (!allowed.includes(user.role)) throw { status: 403, message: 'Forbidden' };
-  return user;
-}
+import { requireAuth } from '@/lib/auth-guard';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireRole(['admin', 'cashier', 'kitchen']);
+    await requireAuth(['admin', 'cashier', 'kitchen']);
     const status = new URL(req.url).searchParams.get('status');
     let query = db.select({
       id: orders.id,
